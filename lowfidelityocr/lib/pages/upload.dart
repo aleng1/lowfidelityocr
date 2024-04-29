@@ -22,10 +22,19 @@ class _UploadPageState extends State<UploadPage> {
     try {
       img.Image? image = img.decodeImage(await imageFile.readAsBytes());
 
-      image =
-          img.copyResize(image!, width: 800);
+      int Dwidth = (image!.width * 1.5).toInt();
+      int Dheight = (image!.height * 1.5).toInt();
 
-      image = img.grayscale(image);
+      var resizedImage = img.copyResize(image, width: Dwidth, height: Dheight);
+
+      // Gassian Blur
+      var gassianBlur = img.gaussianBlur(resizedImage, radius: 5);
+
+      //sobel edge detecting
+      var edgeDetected = img.sobel(gassianBlur);
+
+      // Apply Laplacian filter
+      image = sharpenImage(edgeDetected);
 
       final processedImageFile = File('${imageFile.path}_processed.jpg');
       await processedImageFile.writeAsBytes(img.encodeJpg(image));
@@ -37,13 +46,34 @@ class _UploadPageState extends State<UploadPage> {
     }
   }
 
+  img.Image sharpenImage(img.Image image) {
+    // Create a sharpening kernel (e.g., Laplacian filter)
+    final List<num> kernel = [
+      0,
+      -1,
+      0,
+      -1,
+      5,
+      -1,
+      0,
+      -1,
+      0,
+    ];
+
+    // Apply the kernel as a convolution filter
+    final sharpened = img.convolution(image, filter: kernel);
+
+    return sharpened;
+  }
+
   _imgFromGallery() async {
     try {
       final image = await picker.pickImage(source: ImageSource.gallery);
       EasyLoading.show(status: 'loading...');
       if (image != null) {
         final processedImageFile = await processImage(File(image.path));
-        extracted = await FlutterTesseractOcr.extractText(processedImageFile!.path);
+        extracted =
+            await FlutterTesseractOcr.extractText(processedImageFile!.path);
       } else {
         extracted = "Recognised extracted text will be shown here";
       }
@@ -199,7 +229,7 @@ class _UploadPageState extends State<UploadPage> {
           height: 10,
           color: Colors.grey.shade800,
         ),
-     ),
-   );
+      ),
+    );
   }
 }
